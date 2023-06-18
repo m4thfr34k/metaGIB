@@ -125,15 +125,17 @@ func getGenericMetadata(mintfilename string, rpc string, includeImages bool) err
 								if ctx.Err() != nil {
 									return true, ctx.Err()
 								}
-								// My retry logic here
 
+								// My retry logic here
 								if resp != nil && resp.StatusCode == 429 {
 									return false, errors.New("received 429 response from resource")
 								}
+
 								return retryablehttp.DefaultRetryPolicy(ctx, resp, err)
 							}
 
-							ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
+							ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+							defer cancel()
 							req, err := retryablehttp.NewRequestWithContext(ctx, "GET", metadata.Data.Uri, nil)
 							if err != nil {
 								fmt.Printf("Error creating http request, err: %v\n", err)

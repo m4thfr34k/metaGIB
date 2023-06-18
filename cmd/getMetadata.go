@@ -159,78 +159,81 @@ func getGenericMetadata(mintfilename string, rpc string, includeImages bool) err
 										// Read the content
 										var bodyBytes []byte
 										if resp.Body != nil {
-											bodyBytes, _ = io.ReadAll(resp.Body)
-										}
-
-										// Restore the io.ReadCloser to its original state
-										// TODO update everything that uses the body to just use the bodyBytes so I don't have to restore the resp
-										resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-										decoder := json.NewDecoder(resp.Body)
-
-										if decoder != nil {
-											var metadataForProject GeneralMeta
-											err = decoder.Decode(&metadataForProject)
+											bodyBytes, err = io.ReadAll(resp.Body)
 											if err != nil {
-												fmt.Printf("Error decoding metadata, err: %v\n", err)
+												fmt.Printf("Error reading resp body, err: %v\n", err)
 											} else {
-												metaURL := metadata.Data.Uri
-												fmt.Println("Metadata URL is:", metaURL)
-												fmt.Println("Name is:", metadataForProject.Name)
-												fmt.Println("Symbol is:", metadataForProject.Symbol)
-												fmt.Println("Image URL is:", metadataForProject.Image)
-
-												attributeDataLine := ""
-												for counter, kreeValue := range metadataForProject.Attributes {
-													fmt.Println("Trait counter:", counter,
-														kreeValue.TraitType, " : ",
-														string(kreeValue.TraitValue))
-													attributeDataLine = attributeDataLine + string(kreeValue.TraitValue) + ","
-												}
-												// TODO Need to normalize metadata so columns/fields align correctly in saved file
-
-												infoLine := metadata.Mint.String() + "," + metadata.Data.Name + "," + metaURL + "," +
-													metadataForProject.Image + "," + metadataForProject.Name + "," + attributeDataLine
-
-												appendResult := appendToMintInfoFile(infoLine, projectMintInfoFilename)
-												if appendResult != nil {
-													fmt.Printf("Error with append info, err: %v\n", appendResult)
-												}
-
-												metadataFileName := ".\\" + directoryName + "\\" + metadata.Mint.String() + ".json"
-
 												// Restore the io.ReadCloser to its original state
+												// TODO update everything that uses the body to just use the bodyBytes so I don't have to restore the resp
 												resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-												err = saveFile(metadataFileName, resp)
-												if err != nil {
-													metadataDLerrorCount++
-													fmt.Printf("Error in saving metadata, err: %v\n", err)
-													fmt.Println("Total errors so far is:", metadataDLerrorCount)
-												} else {
-													if includeImages {
-														err = createDirectory(projectImageSaveLocation)
-														ImagemetaURL := metadataForProject.Image
-														fileName := projectImageSaveLocation + metadata.Mint.String() + ImageFileType
-														fmt.Println("Image filename will be:", fileName)
-														fmt.Println("Getting image from:", ImagemetaURL)
-														err = downloadFile(ImagemetaURL, fileName)
-														if err != nil {
-															fmt.Println("Error in downloading image:", err.Error())
-															fmt.Println("File:", fileName)
-															infoErrorLine := mint.String() + ",Error in downloading image," + err.Error() + "," + metadataForProject.Image
-															appendErrorResult := appendToMintInfoFile(infoErrorLine, projectMintInfoErrorFilename)
-															if appendErrorResult != nil {
-																fmt.Printf("Error with append info, err: %v\n", appendErrorResult)
-															}
-														} else {
-															fmt.Println("Successfully grabbed metadata AND image")
-															delete(ProjectMintListMap, k)
-														}
+												decoder := json.NewDecoder(resp.Body)
+
+												if decoder != nil {
+													var metadataForProject GeneralMeta
+													err = decoder.Decode(&metadataForProject)
+													if err != nil {
+														fmt.Printf("Error decoding metadata, err: %v\n", err)
 													} else {
-														fmt.Println("Successfully grabbed metadata")
-														delete(ProjectMintListMap, k)
+														metaURL := metadata.Data.Uri
+														fmt.Println("Metadata URL is:", metaURL)
+														fmt.Println("Name is:", metadataForProject.Name)
+														fmt.Println("Symbol is:", metadataForProject.Symbol)
+														fmt.Println("Image URL is:", metadataForProject.Image)
+
+														attributeDataLine := ""
+														for counter, kreeValue := range metadataForProject.Attributes {
+															fmt.Println("Trait counter:", counter,
+																kreeValue.TraitType, " : ",
+																string(kreeValue.TraitValue))
+															attributeDataLine = attributeDataLine + string(kreeValue.TraitValue) + ","
+														}
+														// TODO Need to normalize metadata so columns/fields align correctly in saved file
+
+														infoLine := metadata.Mint.String() + "," + metadata.Data.Name + "," + metaURL + "," +
+															metadataForProject.Image + "," + metadataForProject.Name + "," + attributeDataLine
+
+														appendResult := appendToMintInfoFile(infoLine, projectMintInfoFilename)
+														if appendResult != nil {
+															fmt.Printf("Error with append info, err: %v\n", appendResult)
+														}
+
+														metadataFileName := ".\\" + directoryName + "\\" + metadata.Mint.String() + ".json"
+
+														// Restore the io.ReadCloser to its original state
+														resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+														err = saveFile(metadataFileName, resp)
+														if err != nil {
+															metadataDLerrorCount++
+															fmt.Printf("Error in saving metadata, err: %v\n", err)
+															fmt.Println("Total errors so far is:", metadataDLerrorCount)
+														} else {
+															if includeImages {
+																err = createDirectory(projectImageSaveLocation)
+																ImagemetaURL := metadataForProject.Image
+																fileName := projectImageSaveLocation + metadata.Mint.String() + ImageFileType
+																fmt.Println("Image filename will be:", fileName)
+																fmt.Println("Getting image from:", ImagemetaURL)
+																err = downloadFile(ImagemetaURL, fileName)
+																if err != nil {
+																	fmt.Println("Error in downloading image:", err.Error())
+																	fmt.Println("File:", fileName)
+																	infoErrorLine := mint.String() + ",Error in downloading image," + err.Error() + "," + metadataForProject.Image
+																	appendErrorResult := appendToMintInfoFile(infoErrorLine, projectMintInfoErrorFilename)
+																	if appendErrorResult != nil {
+																		fmt.Printf("Error with append info, err: %v\n", appendErrorResult)
+																	}
+																} else {
+																	fmt.Println("Successfully grabbed metadata AND image")
+																	delete(ProjectMintListMap, k)
+																}
+															} else {
+																fmt.Println("Successfully grabbed metadata")
+																delete(ProjectMintListMap, k)
+															}
+															fmt.Println("***************************************************")
+															time.Sleep(200 * time.Millisecond)
+														}
 													}
-													fmt.Println("***************************************************")
-													time.Sleep(200 * time.Millisecond)
 												}
 											}
 										}

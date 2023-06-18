@@ -23,6 +23,8 @@ import (
 
 func getGenericMetadata(mintfilename string, rpc string, includeImages bool) error {
 
+	// TODO Add progress bar for user to see percent complete
+
 	// Auto retries until all mint list items are found
 
 	const (
@@ -69,8 +71,10 @@ func getGenericMetadata(mintfilename string, rpc string, includeImages bool) err
 				currentIteration++
 				fmt.Println("****************************************************")
 				fmt.Println("Answer to the Ultimate Question of Life, the Universe, and Everything:", v)
-				fmt.Println("Working on Mint number ", currentIteration, " out of a total of ", MintListTotalCountMap)
+				fmt.Println("Original total number of items:", MintListTotalCountMap)
+				fmt.Println("Working on Mint number ", currentIteration, " out of a current total of ", len(ProjectMintListMap))
 				mint := common.PublicKeyFromString(k)
+				// TODO Refactor Step 1 - get all metadata accounts first
 				metadataAccount, err := tokenmeta.GetTokenMetaPubkey(mint)
 				if err != nil {
 					fmt.Printf("failed to get metadata account, err: %v\n", err)
@@ -81,6 +85,7 @@ func getGenericMetadata(mintfilename string, rpc string, includeImages bool) err
 					}
 				} else {
 					c := client.NewClient(rpcProviderURL)
+					// TODO Refactor Step 2 - Use GetMultipleAccounts to get 100 metadata accounts' data at a time
 					accountInfo, err := c.GetAccountInfo(context.Background(), metadataAccount.ToBase58())
 					if err != nil {
 						fmt.Printf("failed to get accountInfo, err: %v\n", err)
@@ -90,6 +95,7 @@ func getGenericMetadata(mintfilename string, rpc string, includeImages bool) err
 							fmt.Printf("Error with append info, err: %v\n", appendErrorResult)
 						}
 					} else {
+						// TODO Refactor Step 3 - deserialize all metadata accounts
 						metadata, err := tokenmeta.MetadataDeserialize(accountInfo.Data)
 						if err != nil {
 							fmt.Printf("Failed to parse metaAccount, err: %v\n", err)
@@ -117,6 +123,7 @@ func getGenericMetadata(mintfilename string, rpc string, includeImages bool) err
 							}
 
 							// TODO Need to move entire get/http meta piece into its own function
+							// TODO Refactor Step 4 - Use goroutines & wait groups to download offchain metadata in batches
 							retryClient := retryablehttp.NewClient()
 							retryClient.RetryWaitMin = time.Second
 							retryClient.RetryWaitMax = time.Second * 10
@@ -189,6 +196,9 @@ func getGenericMetadata(mintfilename string, rpc string, includeImages bool) err
 															attributeDataLine = attributeDataLine + string(kreeValue.TraitValue) + ","
 														}
 														// TODO Need to normalize metadata so columns/fields align correctly in saved file
+														// TODO Add metadata to map of structs
+														// TODO KeyType is NFT address
+														// Need to keep track of all unique trait names. Will use this to walk through map values for saving to file
 
 														infoLine := metadata.Mint.String() + "," + metadata.Data.Name + "," + metaURL + "," +
 															metadataForProject.Image + "," + metadataForProject.Name + "," + attributeDataLine
@@ -209,6 +219,7 @@ func getGenericMetadata(mintfilename string, rpc string, includeImages bool) err
 															fmt.Println("Total errors so far is:", metadataDLerrorCount)
 														} else {
 															if includeImages {
+																// TODO Refactor Step 5 - Use goroutines & wait groups to download images in batches
 																err = createDirectory(projectImageSaveLocation)
 																ImagemetaURL := metadataForProject.Image
 																fileName := projectImageSaveLocation + metadata.Mint.String() + ImageFileType

@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -52,8 +53,25 @@ func downloadFile(URL, fileName string) error {
 	retryClient.RetryWaitMin = time.Second
 	retryClient.RetryWaitMax = time.Second * 10
 	retryClient.RetryMax = 10
+	retryClient.CheckRetry = func(ctx context.Context, resp *http.Response, err error) (bool, error) {
+		if ctx.Err() != nil {
+			return true, ctx.Err()
+		}
 
-	req, err := retryablehttp.NewRequest("GET", URL, nil)
+		// My retry logic here
+		if (resp != nil && resp.StatusCode == 429) || (resp == nil) {
+			ctx.Done()
+			return false, nil
+		}
+
+		return retryablehttp.DefaultRetryPolicy(ctx, resp, err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", URL, nil)
+
 	if err != nil {
 		return err
 	}

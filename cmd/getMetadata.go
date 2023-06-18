@@ -127,8 +127,9 @@ func getGenericMetadata(mintfilename string, rpc string, includeImages bool) err
 								}
 
 								// My retry logic here
-								if resp != nil && resp.StatusCode == 429 {
-									return false, errors.New("received 429 response from resource")
+								if (resp != nil && resp.StatusCode == 429) || (resp == nil) {
+									ctx.Done()
+									return false, nil
 								}
 
 								return retryablehttp.DefaultRetryPolicy(ctx, resp, err)
